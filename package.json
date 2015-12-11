@@ -1,0 +1,36 @@
+{
+  "name": "colorspectre",
+  "version": "0.1.0",
+  "description": "An improved color-picker sans-jQuery based on Spectrum.",
+  "homepage": "https://github.com/kushalpandya/colorspectre#readme",
+  "author": "Kushal Pandya <kushalspandya@gmail.com> (https://doublslash.com)",
+  "main": "colorspectre.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kushalpandya/colorspectre.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kushalpandya/colorspectre/issues"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [
+    "javascript",
+    "js",
+    "colorpicker",
+    "color"
+  ],
+  "license": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/kushalpandya/colorspectre/blob/master/LICENSE"
+    }
+  ],
+  "engines": {
+    "node": ">= 0.10.0"
+  },
+  "bugs": {
+    "url": "https://github.com/kushalpandya/colorspectre/issues"
+  }
+}
