@@ -149,6 +149,8 @@
                     classList = el.className.split(' ');
                     if (!this.contains(classList, cssClass))
                         this.addClass(el, cssClass);
+                    else
+                        this.removeClass(el, cssClass);
                 }
             }
         }
