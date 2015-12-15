@@ -28,9 +28,17 @@
      */
     var IE = !!(/msie/i.exec(window.navigator.userAgent)),
         PALETTE = ["#ffffff", "#000000", "#ff0000", "#ff8000", "#ffff00", "#008000", "#0000ff", "#4b0082", "#9400d3"],
+        MATH = Math,
+        MIN = MATH.min,
+        MAX = MATH.max,
+        ROUND = MATH.round,
+        RAND = MATH.random,
+        TRIMLEFT = /^[\s,#]+/,
+        TRIMRIGHT = /\s+$/,
+        NAMES,
         emptyFn = function() {},
         CSException,
-        NAMES;
+        matchers;
 
     /**
      * Internal API declarations.
@@ -47,15 +55,6 @@
         fnRgbaSupport,
         replaceInput,
         markup;
-
-    /**
-     * Global class to throw Colorspectre specific Exceptions.
-     */
-    CSException = function(type, message) {
-        this.name = type;
-        this.code = DOMException[type];
-        this.message = message;
-    };
 
     /**
      * Named Colors and Hex codes.
@@ -212,6 +211,53 @@
         yellow: "ff0",
         yellowgreen: "9acd32"
     };
+
+    /**
+     * Global class to throw Colorspectre specific Exceptions.
+     */
+    CSException = function(type, message) {
+        this.name = type;
+        this.code = DOMException[type];
+        this.message = message;
+    };
+
+    /**
+     * Regex matcher for color values provided as RGB, RGBA, HSL, HSLA, HSV, HSVA and Hex.
+     */
+    matchers = (function() {
+        var CSS_INTEGER,
+            CSS_NUMBER,
+            CSS_UNIT,
+            PERMISSIVE_MATCH3,
+            PERMISSIVE_MATCH4;
+
+        // <http://www.w3.org/TR/css3-values/#integers>
+        CSS_INTEGER = "[-\\+]?\\d+%?";
+
+        // <http://www.w3.org/TR/css3-values/#number-value>
+        CSS_NUMBER = "[-\\+]?\\d*\\.\\d+%?";
+
+        // Allow positive/negative integer/number.  Don't capture the either/or, just the entire outcome.
+        CSS_UNIT = "(?:" + CSS_NUMBER + ")|(?:" + CSS_INTEGER + ")";
+
+        // Actual matching.
+        // Parentheses and commas are optional, but not required.
+        // Whitespace can take the place of commas or opening paren
+        PERMISSIVE_MATCH3 = "[\\s|\\(]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")\\s*\\)?";
+        PERMISSIVE_MATCH4 = "[\\s|\\(]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")[,|\\s]+(" + CSS_UNIT + ")\\s*\\)?";
+
+        return {
+            rgb: new RegExp("rgb" + PERMISSIVE_MATCH3),
+            rgba: new RegExp("rgba" + PERMISSIVE_MATCH4),
+            hsl: new RegExp("hsl" + PERMISSIVE_MATCH3),
+            hsla: new RegExp("hsla" + PERMISSIVE_MATCH4),
+            hsv: new RegExp("hsv" + PERMISSIVE_MATCH3),
+            hsva: new RegExp("hsva" + PERMISSIVE_MATCH4),
+            hex3: /^([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/,
+            hex6: /^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
+            hex8: /^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/
+        };
+    })();
 
     /**
      * Basic Underscore Utility Functions, this is where jQuery replacements go.
@@ -379,6 +425,166 @@
             }
             else
                 throw new CSException("NOT_SUPPORTED_ERR", "className is not supported for this element.");
+        },
+
+        /**
+         * Return a valid alpha value [0,1] with all invalid values being set to 1.
+         */
+        boundAlpha: function(a) {
+            a = parseFloat(a);
+
+            if (isNaN(a) ||
+                a < 0 ||
+                a > 1)
+                a = 1;
+
+            return a;
+        },
+
+        /**
+         * Parse a base-16 hex value into a base-10 integer
+         */
+        parseIntFromHex: function(val) {
+            return parseInt(val, 16);
+        },
+
+        /**
+         * Converts a decimal to a hex value.
+         */
+        convertDecimalToHex: function(dec) {
+            return ROUND(parseFloat(dec) * 255).toString(16);
+        },
+
+        /**
+         * Converts a hex value to a decimal.
+         */
+        convertHexToDecimal: function(hex) {
+            return (this.parseIntFromHex(hex) / 255);
+        },
+
+        /**
+         * Converts a decimal to it's percentage value.
+         */
+        convertToPercentage: function(n) {
+            if (n <= 1)
+                n = (n * 100) + "%";
+
+            return n;
+        },
+
+        /**
+         * Force a hex value to have 2 characters
+         */
+        pad2: function(hex) {
+            return hex.length == 1 ? '0' + hex : '' + hex;
+        },
+
+        /**
+         * Force a number between 0 and 1.
+         */
+        clamp01: function(val) {
+            return MIN(1, MAX(0, val));
+        },
+
+        /**
+         * Take input from [0, n] and return it as [0, 1]
+         */
+        bound01: function(n, max) {
+            var processPercent;
+
+            if (this.isOnePointZero(n))
+                n = "100%";
+
+            processPercent = this.isPercentage(n);
+            n = MIN(max, MAX(0, parseFloat(n)));
+
+            // Automatically convert percentage into number
+            if (processPercent)
+                n = parseInt(n * max, 10) / 100;
+
+            // Handle floating point rounding errors
+            if ((MATH.abs(n - max) < 0.000001))
+                return 1;
+
+            // Convert into [0, 1] range if it isn't already
+            return (n % max) / parseFloat(max);
+        },
+
+        /**
+         * Check if value is a percentage.
+         */
+        isPercentage: function(n) {
+            return typeof n === "string" && n.indexOf('%') != -1;
+        },
+
+        /**
+         * Need to handle 1.0 as 100%, since once it is a number, there is no difference between it and 1
+         * <http://stackoverflow.com/questions/7422072/javascript-how-to-detect-number-as-a-decimal-including-1-0>
+         */
+        isOnePointZero: function(n) {
+            return typeof n == "string" && n.indexOf('.') != -1 && parseFloat(n) === 1;
+        },
+
+        /**
+         * Permissive string parsing. Take in a number of formats, and output an object.
+         * based on detected format. Returns `{ r, g, b }` or `{ h, s, l }` or `{ h, s, v}`
+         */
+        stringInputToObject: function(color) {
+            var named = false,
+                match;
+
+            color = color.replace(trimLeft,'').replace(trimRight, '').toLowerCase();
+
+            if (NAMES[color])
+            {
+                color = NAMES[color];
+                named = true;
+            }
+            else if (color === 'transparent')
+                return { r: 0, g: 0, b: 0, a: 0, format: "name" };
+
+            if ((match = matchers.rgb.exec(color)))
+                return { r: match[1], g: match[2], b: match[3] };
+            if ((match = matchers.rgba.exec(color)))
+                return { r: match[1], g: match[2], b: match[3], a: match[4] };
+            if ((match = matchers.hsl.exec(color)))
+                return { h: match[1], s: match[2], l: match[3] };
+            if ((match = matchers.hsla.exec(color)))
+                return { h: match[1], s: match[2], l: match[3], a: match[4] };
+            if ((match = matchers.hsv.exec(color)))
+                return { h: match[1], s: match[2], v: match[3] };
+            if ((match = matchers.hsva.exec(color)))
+                return { h: match[1], s: match[2], v: match[3], a: match[4] };
+            if ((match = matchers.hex8.exec(color)))
+            {
+                return {
+                    a: this.convertHexToDecimal(match[1]),
+                    r: this.parseIntFromHex(match[2]),
+                    g: this.parseIntFromHex(match[3]),
+                    b: this.parseIntFromHex(match[4]),
+                    format: named ? "name" : "hex8"
+                };
+            }
+            if ((match = matchers.hex6.exec(color)))
+            {
+                return {
+                    r: this.parseIntFromHex(match[1]),
+                    g: this.parseIntFromHex(match[2]),
+                    b: this.parseIntFromHex(match[3]),
+                    format: named ? "name" : "hex"
+                };
+            }
+            if ((match = matchers.hex3.exec(color)))
+            {
+                return {
+                    r: this.parseIntFromHex(match[1] + '' + match[1]),
+                    g: this.parseIntFromHex(match[2] + '' + match[2]),
+                    b: this.parseIntFromHex(match[3] + '' + match[3]),
+                    format: named ? "name" : "hex"
+                };
+            }
+
+            return false;
         }
     };
 
