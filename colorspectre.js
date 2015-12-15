@@ -14,16 +14,39 @@
 
 (function() {
     "use strict";
+
+    /**
+     * Namespace declarations.
+     */
     var self = this,
         hasRequire = (typeof require !== 'undefined'),
         old_colorspectre = self.colorspectre,
         colorspectre;
 
+    /**
+     * Global Constant declarations.
+     */
     var IE = !!(/msie/i.exec(window.navigator.userAgent)),
         PALETTE = ["#ffffff", "#000000", "#ff0000", "#ff8000", "#ffff00", "#008000", "#0000ff", "#4b0082", "#9400d3"],
         emptyFn = function() {},
         CSException,
         NAMES;
+
+    /**
+     * Internal API declarations.
+     */
+    var _,
+        Color,
+        Tinycolor;
+
+    /**
+     * Extra variables.
+     */
+    var locale,
+        defaultOptions,
+        fnRgbaSupport,
+        replaceInput,
+        markup;
 
     /**
      * Global class to throw Colorspectre specific Exceptions.
@@ -189,13 +212,6 @@
         yellow: "ff0",
         yellowgreen: "9acd32"
     };
-
-    /**
-     * Internal API declarations.
-     */
-    var _,
-        Color,
-        Tinycolor;
 
     /**
      * Basic Underscore Utility Functions, this is where jQuery replacements go.
@@ -366,7 +382,7 @@
         }
     };
 
-    var locale = {
+    locale = {
         cancelText: "cancel",
         chooseText: "choose",
         togglePaletteMoreText: "more",
@@ -375,7 +391,7 @@
         noColorSelectedText: "No Color Selected"
     };
 
-    var defaultOptions = {
+    defaultOptions = {
         // Callbacks
         beforeShow: emptyFn,
         move: emptyFn,
@@ -410,10 +426,6 @@
         disabled: false,
         offset: null
     };
-
-    var fnRgbaSupport,
-        replaceInput,
-        markup;
 
     fnRgbaSupport = function() {
         var el = document.createElement('div'),
