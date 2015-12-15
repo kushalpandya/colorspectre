@@ -1342,6 +1342,166 @@
         return bestColor;
     };
 
+    /**
+     * Tinycolor Modification Functions.
+     * Thanks to less.js for some of the basics here
+     * <https://github.com/cloudhead/less.js/blob/master/lib/less/functions.js>
+     */
+    TinycolorUtil = {
+        desaturate: function(color, amount) {
+            var hsl;
+
+            amount = (amount === 0) ? 0 : (amount || 10);
+            hsl = Tinycolor(color).toHsl();
+            hsl.s -= amount / 100;
+            hsl.s = _.clamp01(hsl.s);
+
+            return Tinycolor(hsl);
+        },
+
+        saturate: function(color, amount) {
+            var hsl;
+
+            amount = (amount === 0) ? 0 : (amount || 10);
+            hsl = Tinycolor(color).toHsl();
+            hsl.s += amount / 100;
+            hsl.s = _.clamp01(hsl.s);
+
+            return Tinycolor(hsl);
+        },
+
+        greyscale: function(color) {
+            return Tinycolor(color).desaturate(100);
+        },
+
+        lighten: function(color, amount) {
+            var hsl;
+
+            amount = (amount === 0) ? 0 : (amount || 10);
+            hsl = Tinycolor(color).toHsl();
+            hsl.l += amount / 100;
+            hsl.l = _.clamp01(hsl.l);
+
+            return Tinycolor(hsl);
+        },
+
+        brighten: function(color, amount) {
+            var rgb;
+
+            amount = (amount === 0) ? 0 : (amount || 10);
+            rgb = Tinycolor(color).toRgb();
+            rgb.r = MAX(0, MIN(255, rgb.r - ROUND(255 * - (amount / 100))));
+            rgb.g = MAX(0, MIN(255, rgb.g - ROUND(255 * - (amount / 100))));
+            rgb.b = MAX(0, MIN(255, rgb.b - ROUND(255 * - (amount / 100))));
+
+            return Tinycolor(rgb);
+        },
+
+        darken: function(color, amount) {
+            var hsl;
+
+            amount = (amount === 0) ? 0 : (amount || 10);
+            hsl = Tinycolor(color).toHsl();
+            hsl.l -= amount / 100;
+            hsl.l = _.clamp01(hsl.l);
+
+            return Tinycolor(hsl);
+        },
+
+        /**
+         * Spin takes a positive or negative amount within [-360, 360] indicating the change of hue.
+         * Values outside of this range will be wrapped into this range.
+         */
+        spin: function(color, amount) {
+            var hsl,
+                hue;
+
+            hsl = Tinycolor(color).toHsl();
+            hue = (ROUND(hsl.h) + amount) % 360;
+            hsl.h = hue < 0 ? 360 + hue : hue;
+
+            return Tinycolor(hsl);
+        },
+
+        complement: function(color) {
+            var hsl = Tinycolor(color).toHsl();
+
+            hsl.h = (hsl.h + 180) % 360;
+
+            return Tinycolor(hsl);
+        },
+
+        triad: function(color) {
+            var hsl = Tinycolor(color).toHsl(),
+                h = hsl.h;
+
+            return [
+                Tinycolor(color),
+                Tinycolor({ h: (h + 120) % 360, s: hsl.s, l: hsl.l }),
+                Tinycolor({ h: (h + 240) % 360, s: hsl.s, l: hsl.l })
+            ];
+        },
+
+        tetrad: function(color) {
+            var hsl = Tinycolor(color).toHsl(),
+                h = hsl.h;
+
+            return [
+                Tinycolor(color),
+                Tinycolor({ h: (h + 90) % 360, s: hsl.s, l: hsl.l }),
+                Tinycolor({ h: (h + 180) % 360, s: hsl.s, l: hsl.l }),
+                Tinycolor({ h: (h + 270) % 360, s: hsl.s, l: hsl.l })
+            ];
+        },
+
+        splitcomplement: function(color) {
+            var hsl = Tinycolor(color).toHsl(),
+                h = hsl.h;
+
+            return [
+                Tinycolor(color),
+                Tinycolor({ h: (h + 72) % 360, s: hsl.s, l: hsl.l}),
+                Tinycolor({ h: (h + 216) % 360, s: hsl.s, l: hsl.l})
+            ];
+        },
+
+        analogous: function(color, results, slices) {
+            var hsl = Tinycolor(color).toHsl(),
+                part,
+                ret;
+
+            results = results || 6;
+            slices = slices || 30;
+
+            part = 360 / slices;
+            ret = [Tinycolor(color)];
+
+            for (hsl.h = ((hsl.h - (part * results >> 1)) + 720) % 360; --results; ) {
+                hsl.h = (hsl.h + part) % 360;
+                ret.push(Tinycolor(hsl));
+            }
+
+            return ret;
+        },
+
+        monochromatic: function(color, results) {
+            var hsv = Tinycolor(color).toHsv(),
+                h = hsv.h, s = hsv.s, v = hsv.v,
+                ret = [],
+                modification;
+
+            results = results || 6;
+            modification = 1 / results;
+
+            while (results--) {
+                ret.push(Tinycolor({ h: h, s: s, v: v}));
+                v = (v + modification) % 1;
+            }
+
+            return ret;
+        }
+    };
+
     locale = {
         cancelText: "cancel",
         chooseText: "choose",
