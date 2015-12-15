@@ -36,6 +36,7 @@
         TRIMLEFT = /^[\s,#]+/,
         TRIMRIGHT = /\s+$/,
         NAMES,
+        HEXNAMES,
         emptyFn = function() {},
         CSException,
         matchers;
@@ -45,7 +46,9 @@
      */
     var _,
         Color,
-        Tinycolor;
+        Tinycolor,
+        TinycolorUtil,
+        tinyCounter = 0;
 
     /**
      * Extra variables.
@@ -588,7 +591,6 @@
         }
     };
 
-
     /**
      * Color manipulation utility Functions.
      * Uses <http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript>
@@ -879,6 +881,465 @@
                 a: a
             };
         }
+    };
+
+    /**
+     * Swapped Color names to Hex code map.
+     */
+    HEXNAMES = _.flipMap(NAMES);
+
+    /**
+     * Tinycolor v1.1.2.
+     * https://github.com/bgrins/TinyColor
+     */
+    Tinycolor = function(color, opts) {
+        var rgb;
+
+        color = color || '';
+        opts = opts || {};
+
+        // If input is already a Tinycolor, return itself
+        if (color instanceof Tinycolor)
+            return color;
+
+        // If we are called as a function, call using new instead
+        if (!(this instanceof Tinycolor))
+            return new Tinycolor(color, opts);
+
+        rgb = Color.inputToRGB(color);
+        this._originalInput = color;
+        this._r = rgb.r;
+        this._g = rgb.g;
+        this._b = rgb.b;
+        this._a = rgb.a;
+        this._roundA = ROUND(100*this._a) / 100;
+        this._format = opts.format || rgb.format;
+        this._gradientType = opts.gradientType;
+
+        // Don't let the range of [0,255] come back in [0,1].
+        // Potentially lose a little bit of precision here, but will fix issues where
+        // .5 gets interpreted as half of the total, instead of half of 1
+        // If it was supposed to be 128, this was already taken care of by `inputToRgb`
+        if (this._r < 1)
+            this._r = ROUND(this._r);
+        if (this._g < 1)
+            this._g = ROUND(this._g);
+        if (this._b < 1)
+            this._b = ROUND(this._b);
+
+        this._ok = rgb.ok;
+        this._tc_id = tinyCounter++;
+    };
+
+    Tinycolor.prototype = {
+        isDark: function() {
+            return this.getBrightness() < 128;
+        },
+
+        isLight: function() {
+            return !this.isDark();
+        },
+
+        isValid: function() {
+            return this._ok;
+        },
+
+        getOriginalInput: function() {
+            return this._originalInput;
+        },
+
+        getFormat: function() {
+            return this._format;
+        },
+
+        getAlpha: function() {
+            return this._a;
+        },
+
+        getBrightness: function() {
+            var rgb = this.toRgb();
+
+            return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+        },
+
+        setAlpha: function(value) {
+            this._a = _.boundAlpha(value);
+            this._roundA = ROUND(100*this._a) / 100;
+
+            return this;
+        },
+
+        toHsv: function() {
+            var hsv = Color.rgbToHsv(this._r, this._g, this._b);
+
+            return { h: hsv.h * 360, s: hsv.s, v: hsv.v, a: this._a };
+        },
+
+        toHsvString: function() {
+            var hsv = Color.rgbToHsv(this._r, this._g, this._b),
+                h = ROUND(hsv.h * 360),
+                s = ROUND(hsv.s * 100),
+                v = ROUND(hsv.v * 100);
+
+            return (this._a == 1) ?
+                        "hsv("  + h + ", " + s + "%, " + v + "%)" :
+                        "hsva(" + h + ", " + s + "%, " + v + "%, "+ this._roundA + ")";
+        },
+
+        toHsl: function() {
+            var hsl = Color.rgbToHsl(this._r, this._g, this._b);
+
+            return { h: hsl.h * 360, s: hsl.s, l: hsl.l, a: this._a };
+        },
+
+        toHslString: function() {
+            var hsl = Color.rgbToHsl(this._r, this._g, this._b),
+                h = ROUND(hsl.h * 360),
+                s = ROUND(hsl.s * 100),
+                l = ROUND(hsl.l * 100);
+
+            return (this._a == 1) ?
+                        "hsl("  + h + ", " + s + "%, " + l + "%)" :
+                        "hsla(" + h + ", " + s + "%, " + l + "%, "+ this._roundA + ")";
+        },
+
+        toHex: function(allow3Char) {
+            return Color.rgbToHex(this._r, this._g, this._b, allow3Char);
+        },
+
+        toHexString: function(allow3Char) {
+            return '#' + this.toHex(allow3Char);
+        },
+
+        toHex8: function() {
+            return Color.rgbaToHex(this._r, this._g, this._b, this._a);
+        },
+
+        toHex8String: function() {
+            return '#' + this.toHex8();
+        },
+
+        toRgb: function() {
+            return { r: ROUND(this._r), g: ROUND(this._g), b: ROUND(this._b), a: this._a };
+        },
+
+        toRgbString: function() {
+            return (this._a == 1) ?
+                        "rgb("  + ROUND(this._r) + ", " + ROUND(this._g) + ", " + ROUND(this._b) + ")" :
+                        "rgba(" + ROUND(this._r) + ", " + ROUND(this._g) + ", " + ROUND(this._b) + ", " + this._roundA + ")";
+        },
+
+        toPercentageRgb: function() {
+            return {
+                r: ROUND(_.bound01(this._r, 255) * 100) + "%",
+                g: ROUND(_.bound01(this._g, 255) * 100) + "%",
+                b: ROUND(_.bound01(this._b, 255) * 100) + "%",
+                a: this._a
+            };
+        },
+
+        toPercentageRgbString: function() {
+            return (this._a == 1) ?
+                        "rgb("  + ROUND(_.bound01(this._r, 255) * 100) + "%, " + ROUND(_.bound01(this._g, 255) * 100) + "%, " + ROUND(_.bound01(this._b, 255) * 100) + "%)" :
+                        "rgba(" + ROUND(_.bound01(this._r, 255) * 100) + "%, " + ROUND(_.bound01(this._g, 255) * 100) + "%, " + ROUND(_.bound01(this._b, 255) * 100) + "%, " + this._roundA + ")";
+        },
+
+        toName: function() {
+            if (this._a === 0)
+                return "transparent";
+
+            if (this._a < 1)
+                return false;
+
+            return HEXNAMES[Color.rgbToHex(this._r, this._g, this._b, true)] || false;
+        },
+
+        toFilter: function(secondColor) {
+            var hex8String = '#' + Color.rgbaToHex(this._r, this._g, this._b, this._a),
+                secondHex8String = hex8String,
+                gradientType = this._gradientType ? "GradientType = 1, " : "",
+                s;
+
+            if (secondColor)
+            {
+                s = Tinycolor(secondColor);
+                secondHex8String = s.toHex8String();
+            }
+
+            return "progid:DXImageTransform.Microsoft.gradient("+gradientType+"startColorstr="+hex8String+",endColorstr="+secondHex8String+")";
+        },
+
+        toString: function(format) {
+            var formattedString = false,
+                hasAlpha = this._a < 1 && this._a >= 0,
+                formatSet,
+                needsAlphaFormat;
+
+
+            formatSet = !!format;
+            format = format || this._format;
+            needsAlphaFormat = !formatSet &&
+                                hasAlpha &&
+                                (
+                                    format === "hex" ||
+                                    format === "hex6" ||
+                                    format === "hex3" ||
+                                    format === "name"
+                                );
+
+            if (needsAlphaFormat)
+            {
+                // Special case for "transparent", all other non-alpha formats
+                // will return rgba when there is transparency.
+                if (format === "name" &&
+                    this._a === 0)
+                    return this.toName();
+
+                return this.toRgbString();
+            }
+
+            switch(format)
+            {
+                case 'rgb':
+                    formattedString = this.toRgbString();
+                    break;
+                case 'prgb':
+                    formattedString = this.toPercentageRgbString();
+                    break;
+                case 'hex':
+                case 'hex6':
+                    formattedString = this.toHexString();
+                    break;
+                case 'hex3':
+                    formattedString = this.toHexString(true);
+                    break;
+                case 'hex8':
+                    formattedString = this.toHex8String();
+                    break;
+                case 'name':
+                    formattedString = this.toName();
+                    break;
+                case 'hsl':
+                    formattedString = this.toHslString();
+                    break;
+                case 'hsv':
+                    formattedString = this.toHsvString();
+                    break;
+            }
+
+            return formattedString || this.toHexString();
+        },
+
+        _applyModification: function(fn, args) {
+            var color = fn.apply(null, [this].concat([].slice.call(args)));
+            this._r = color._r;
+            this._g = color._g;
+            this._b = color._b;
+            this.setAlpha(color._a);
+            return this;
+        },
+
+        lighten: function() {
+            return this._applyModification(lighten, arguments);
+        },
+
+        brighten: function() {
+            return this._applyModification(brighten, arguments);
+        },
+
+        darken: function() {
+            return this._applyModification(darken, arguments);
+        },
+
+        desaturate: function() {
+            return this._applyModification(desaturate, arguments);
+        },
+
+        saturate: function() {
+            return this._applyModification(saturate, arguments);
+        },
+
+        greyscale: function() {
+            return this._applyModification(greyscale, arguments);
+        },
+
+        spin: function() {
+            return this._applyModification(spin, arguments);
+        },
+
+        _applyCombination: function(fn, args) {
+            return fn.apply(null, [this].concat([].slice.call(args)));
+        },
+
+        analogous: function() {
+            return this._applyCombination(analogous, arguments);
+        },
+
+        complement: function() {
+            return this._applyCombination(complement, arguments);
+        },
+
+        monochromatic: function() {
+            return this._applyCombination(monochromatic, arguments);
+        },
+
+        splitcomplement: function() {
+            return this._applyCombination(splitcomplement, arguments);
+        },
+
+        triad: function() {
+            return this._applyCombination(triad, arguments);
+        },
+
+        tetrad: function() {
+            return this._applyCombination(tetrad, arguments);
+        }
+    };
+
+    Tinycolor.fromRatio = function(color, opts) {
+        var newColor = {},
+            i;
+
+        if (typeof color === "object")
+        {
+            for (i in color)
+            {
+                if (color.hasOwnProperty(i))
+                {
+                    if (i === "a")
+                        newColor[i] = color[i];
+                    else
+                        newColor[i] = _.convertToPercentage(color[i]);
+                }
+            }
+
+            color = newColor;
+        }
+
+        return Tinycolor(color, opts);
+    };
+
+    Tinycolor.equals = function (color1, color2) {
+        if (!color1 || !color2)
+            return false;
+
+        return Tinycolor(color1).toRgbString() == Tinycolor(color2).toRgbString();
+    };
+
+    Tinycolor.random = function() {
+        return Tinycolor.fromRatio({
+            r: RAND(),
+            g: RAND(),
+            b: RAND()
+        });
+    };
+
+    Tinycolor.mix = function(color1, color2, amount) {
+        var rgba,
+            rgb1, rgb2,
+            p, w, a,
+            w1, w2;
+
+        amount = (amount === 0) ? 0 : (amount || 50);
+        rgb1 = Tinycolor(color1).toRgb();
+        rgb2 = Tinycolor(color2).toRgb();
+        p = amount / 100;
+        w = p * 2 - 1;
+        a = rgb2.a - rgb1.a;
+
+        if (w * a === -1)
+            w1 = w;
+        else
+            w1 = (w + a) / (1 + w * a);
+
+        w1 = (w1 + 1) / 2;
+        w2 = 1 - w1;
+
+        rgba = {
+            r: rgb2.r * w1 + rgb1.r * w2,
+            g: rgb2.g * w1 + rgb1.g * w2,
+            b: rgb2.b * w1 + rgb1.b * w2,
+            a: rgb2.a * p  + rgb1.a * (1 - p)
+        };
+
+        return Tinycolor(rgba);
+    };
+
+    /**
+     * Analyze the 2 colors and returns an object with the following properties:
+     * `brightness`: difference in brightness between the two colors
+     * `color`: difference in color/hue between the two colors
+     */
+    Tinycolor.readability = function(color1, color2) {
+        var c1, c2,
+            rgb1, rgb2,
+            brightnessA, brightnessB,
+            colorDiff;
+
+        c1 = Tinycolor(color1);
+        c2 = Tinycolor(color2);
+        rgb1 = c1.toRgb();
+        rgb2 = c2.toRgb();
+        brightnessA = c1.getBrightness();
+        brightnessB = c2.getBrightness();
+
+        colorDiff = (
+            MAX(rgb1.r, rgb2.r) - MIN(rgb1.r, rgb2.r) +
+            MAX(rgb1.g, rgb2.g) - MIN(rgb1.g, rgb2.g) +
+            MAX(rgb1.b, rgb2.b) - MIN(rgb1.b, rgb2.b)
+        );
+
+        return {
+            brightness: MATH.abs(brightnessA - brightnessB),
+            color: colorDiff
+        };
+    };
+
+    /**
+     * Check if foreground and background color combinations provide sufficient contrast.
+     * http://www.w3.org/TR/AERT#color-contrast
+     * Eg; Tinycolor.isReadable("#000", "#111") => false
+     */
+    Tinycolor.isReadable = function(color1, color2) {
+        var readability = Tinycolor.readability(color1, color2);
+
+        return readability.brightness > 125 &&
+               readability.color > 500;
+    };
+
+    /**
+     * Given a base color and a list of possible foreground or background
+     * colors for that base, returns the most readable color.
+     * Eg; Tinycolor.mostReadable("#123", ["#fff", "#000"]) => "#000"
+     */
+    Tinycolor.mostReadable = function(baseColor, colorList) {
+        var bestColor = null,
+            bestScore = 0,
+            bestIsReadable = false,
+            readability,
+            readable,
+            score,
+            i;
+
+        for (i = 0; i < colorList.length; i++)
+        {
+            // We normalize both around the "acceptable" breaking point,
+            // but rank brightness constrast higher than hue.
+            readability = Tinycolor.readability(baseColor, colorList[i]);
+            readable = readability.brightness > 125 && readability.color > 500;
+            score = 3 * (readability.brightness / 125) + (readability.color / 500);
+
+            if ((readable && !bestIsReadable) ||
+                (readable && bestIsReadable && score > bestScore) ||
+                ((!readable) && (!bestIsReadable) && score > bestScore))
+            {
+                bestIsReadable = readable;
+                bestScore = score;
+                bestColor = Tinycolor(colorList[i]);
+            }
+        }
+
+        return bestColor;
     };
 
     locale = {
