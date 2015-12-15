@@ -533,7 +533,7 @@
             var named = false,
                 match;
 
-            color = color.replace(trimLeft,'').replace(trimRight, '').toLowerCase();
+            color = color.replace(TRIMLEFT,'').replace(TRIMRIGHT, '').toLowerCase();
 
             if (NAMES[color])
             {
@@ -585,6 +585,299 @@
             }
 
             return false;
+        }
+    };
+
+
+    /**
+     * Color manipulation utility Functions.
+     * Uses <http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript>
+     */
+    Color = {
+        /**
+         * Handle bounds / percentage checking to conform to CSS color spec
+         * <http://www.w3.org/TR/css3-color/>
+         * *Assumes:* r, g, b in [0, 255] or [0, 1]
+         * *Returns:* { r, g, b } in [0, 255]
+         */
+        rgbToRgb: function(r, g, b) {
+            return {
+                r: _.bound01(r, 255) * 255,
+                g: _.bound01(g, 255) * 255,
+                b: _.bound01(b, 255) * 255
+            };
+        },
+
+        /**
+         * Converts an RGB color value to HSL.
+         * *Assumes:* r, g, and b are contained in [0, 255] or [0, 1]
+         * *Returns:* { h, s, l } in [0,1]
+         */
+        rgbToHsl: function(r, g, b) {
+            var h, s, l,
+                min, max, diff;
+
+            r = _.bound01(r, 255);
+            g = _.bound01(g, 255);
+            b = _.bound01(b, 255);
+
+            max = MAX(r, g, b);
+            min = MIN(r, g, b);
+
+            l = (max + min) / 2;
+
+            if (max === min)
+                h = s = 0; // achromatic.
+            else
+            {
+                diff = max - min;
+                s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
+
+                switch(max)
+                {
+                    case r:
+                        h = (g - b) / diff + (g < b ? 6 : 0);
+                        break;
+                    case g:
+                        h = (b - r) / diff + 2;
+                        break;
+                    case b:
+                        h = (r - g) / diff + 4;
+                        break;
+                }
+
+                h /= 6;
+            }
+
+            return { h: h, s: s, l: l };
+        },
+
+        /**
+         * Converts an HSL color value to RGB.
+         * *Assumes:* h is contained in [0, 1] or [0, 360] and s and l are contained [0, 1] or [0, 100]
+         * *Returns:* { r, g, b } in the set [0, 255]
+         */
+        hslToRgb: function(h, s, l) {
+            var r, g, b, p, q,
+                hue2rgb;
+
+            h = _.bound01(h, 360);
+            s = _.bound01(s, 100);
+            l = _.bound01(l, 100);
+
+            hue2rgb = function(p, q, t) {
+                if (t < 0)
+                    t += 1;
+
+                if (t > 1)
+                    t -= 1;
+
+                if (t < 1/6)
+                    return p + (q - p) * 6 * t;
+                if (t < 1/2)
+                    return q;
+                if (t < 2/3)
+                    return p + (q - p) * (2/3 - t) * 6;
+
+                return p;
+            };
+
+            if (s === 0)
+                r = g = b = l; // achromatic
+            else
+            {
+                q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+
+            return { r: r * 255, g: g * 255, b: b * 255 };
+        },
+
+        /**
+         * Converts an RGB color value to HSV.
+         * *Assumes:* r, g, and b are contained in the set [0, 255] or [0, 1]
+         * *Returns:* { h, s, v } in [0,1]
+         */
+        rgbToHsv: function(r, g, b) {
+            var h, s, v,
+                max, min, diff;
+
+            r = _.bound01(r, 255);
+            g = _.bound01(g, 255);
+            b = _.bound01(b, 255);
+
+            max = MAX(r, g, b);
+            min = MIN(r, g, b);
+
+            v = max;
+            diff = max - min;
+            s = max === 0 ? 0 : diff / max;
+
+            if (max === min)
+                h = 0; // achromatic
+            else
+            {
+                switch(max)
+                {
+                    case r:
+                        h = (g - b) / diff + (g < b ? 6 : 0);
+                        break;
+                    case g:
+                        h = (b - r) / diff + 2;
+                        break;
+                    case b:
+                        h = (r - g) / diff + 4;
+                        break;
+                }
+
+                h /= 6;
+            }
+
+            return { h: h, s: s, v: v };
+        },
+
+        /**
+         * Converts an HSV color value to RGB.
+         * *Assumes:* h is contained in [0, 1] or [0, 360] and s and v are contained in [0, 1] or [0, 100]
+         * *Returns:* { r, g, b } in the set [0, 255]
+         */
+        hsvToRgb: function(h, s, v) {
+            var r, g, b,
+                p, q, t,
+                i, f,
+                mod;
+
+            h = _.bound01(h, 360) * 6;
+            s = _.bound01(s, 100);
+            v = _.bound01(v, 100);
+
+            i = MATH.floor(h);
+            f = h - i;
+            p = v * (1 - s);
+            q = v * (1 - f * s);
+            t = v * (1 - (1 - f) * s);
+            mod = i % 6;
+            r = [v, q, p, p, t, v][mod];
+            g = [t, v, v, q, p, p][mod];
+            b = [p, p, t, v, v, q][mod];
+
+            return { r: r * 255, g: g * 255, b: b * 255 };
+        },
+
+        /**
+         * Converts an RGB color to Hex.
+         * *Assumes:* r, g, and b are contained in the set [0, 255]
+         * *Returns:* a 3 or 6 character hex.
+         */
+        rgbToHex: function(r, g, b, allow3Char) {
+            var hex;
+
+            hex = [
+                _.pad2(ROUND(r).toString(16)),
+                _.pad2(ROUND(g).toString(16)),
+                _.pad2(ROUND(b).toString(16))
+            ];
+
+            if (allow3Char &&
+                hex[0].charAt(0) === hex[0].charAt(1) &&
+                hex[1].charAt(0) === hex[1].charAt(1) &&
+                hex[2].charAt(0) === hex[2].charAt(1))
+            {
+                return hex[0].charAt(0) + hex[1].charAt(0) + hex[2].charAt(0);
+            }
+
+            return hex.join("");
+        },
+
+        /**
+         * Converts an RGBA color plus alpha transparency to hex.
+         * *Assumes:* r, g, b and a are contained in the set [0, 255]
+         * *Returns:* an 8 character hex.
+         */
+        rgbaToHex: function(r, g, b, a) {
+            var hex = [
+                _.pad2(_.convertDecimalToHex(a)),
+                _.pad2(ROUND(r).toString(16)),
+                _.pad2(ROUND(g).toString(16)),
+                _.pad2(ROUND(b).toString(16))
+            ];
+
+            return hex.join("");
+        },
+
+        /**
+         * Given a string or object, convert that input to RGB
+         * Possible string inputs:
+         *
+         *     "red"
+         *     "#f00" or "f00"
+         *     "#ff0000" or "ff0000"
+         *     "#ff000000" or "ff000000"
+         *     "rgb 255 0 0" or "rgb (255, 0, 0)"
+         *     "rgb 1.0 0 0" or "rgb (1, 0, 0)"
+         *     "rgba (255, 0, 0, 1)" or "rgba 255, 0, 0, 1"
+         *     "rgba (1.0, 0, 0, 1)" or "rgba 1.0, 0, 0, 1"
+         *     "hsl(0, 100%, 50%)" or "hsl 0 100% 50%"
+         *     "hsla(0, 100%, 50%, 1)" or "hsla 0 100% 50%, 1"
+         *     "hsv(0, 100%, 100%)" or "hsv 0 100% 100%"
+         */
+        inputToRGB: function(color) {
+            var rgb = { r: 0, g: 0, b: 0 },
+                a = 1,
+                ok = false,
+                format = false;
+
+            if (typeof color == "string")
+                color = _.stringInputToObject(color);
+
+            if (typeof color == "object")
+            {
+                if (color.hasOwnProperty("r") &&
+                    color.hasOwnProperty("g") &&
+                    color.hasOwnProperty("b"))
+                {
+                    rgb = this.rgbToRgb(color.r, color.g, color.b);
+                    ok = true;
+                    format = String(color.r).substr(-1) === "%" ? "prgb" : "rgb";
+                }
+                else if (color.hasOwnProperty("h") &&
+                         color.hasOwnProperty("s") &&
+                         color.hasOwnProperty("v"))
+                {
+                    color.s = _.convertToPercentage(color.s);
+                    color.v = _.convertToPercentage(color.v);
+                    rgb = this.hsvToRgb(color.h, color.s, color.v);
+                    ok = true;
+                    format = "hsv";
+                }
+                else if (color.hasOwnProperty("h") &&
+                         color.hasOwnProperty("s") &&
+                         color.hasOwnProperty("l"))
+                {
+                    color.s = _.convertToPercentage(color.s);
+                    color.l = _.convertToPercentage(color.l);
+                    rgb = this.hslToRgb(color.h, color.s, color.l);
+                    ok = true;
+                    format = "hsl";
+                }
+
+                if (color.hasOwnProperty("a"))
+                    a = color.a;
+            }
+
+            a = _.boundAlpha(a);
+
+            return {
+                ok: ok,
+                format: color.format || format,
+                r: MIN(255, MAX(rgb.r, 0)),
+                g: MIN(255, MAX(rgb.g, 0)),
+                b: MIN(255, MAX(rgb.b, 0)),
+                a: a
+            };
         }
     };
 
