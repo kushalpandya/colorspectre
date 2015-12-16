@@ -1140,31 +1140,31 @@
         },
 
         lighten: function() {
-            return this._applyModification(lighten, arguments);
+            return this._applyModification(TinycolorUtil.lighten, arguments);
         },
 
         brighten: function() {
-            return this._applyModification(brighten, arguments);
+            return this._applyModification(TinycolorUtil.brighten, arguments);
         },
 
         darken: function() {
-            return this._applyModification(darken, arguments);
+            return this._applyModification(TinycolorUtil.darken, arguments);
         },
 
         desaturate: function() {
-            return this._applyModification(desaturate, arguments);
+            return this._applyModification(TinycolorUtil.desaturate, arguments);
         },
 
         saturate: function() {
-            return this._applyModification(saturate, arguments);
+            return this._applyModification(TinycolorUtil.saturate, arguments);
         },
 
         greyscale: function() {
-            return this._applyModification(greyscale, arguments);
+            return this._applyModification(TinycolorUtil.greyscale, arguments);
         },
 
         spin: function() {
-            return this._applyModification(spin, arguments);
+            return this._applyModification(TinycolorUtil.spin, arguments);
         },
 
         _applyCombination: function(fn, args) {
@@ -1172,27 +1172,27 @@
         },
 
         analogous: function() {
-            return this._applyCombination(analogous, arguments);
+            return this._applyCombination(TinycolorUtil.analogous, arguments);
         },
 
         complement: function() {
-            return this._applyCombination(complement, arguments);
+            return this._applyCombination(TinycolorUtil.complement, arguments);
         },
 
         monochromatic: function() {
-            return this._applyCombination(monochromatic, arguments);
+            return this._applyCombination(TinycolorUtil.monochromatic, arguments);
         },
 
         splitcomplement: function() {
-            return this._applyCombination(splitcomplement, arguments);
+            return this._applyCombination(TinycolorUtil.splitcomplement, arguments);
         },
 
         triad: function() {
-            return this._applyCombination(triad, arguments);
+            return this._applyCombination(TinycolorUtil.triad, arguments);
         },
 
         tetrad: function() {
-            return this._applyCombination(tetrad, arguments);
+            return this._applyCombination(TinycolorUtil.tetrad, arguments);
         }
     };
 
@@ -1343,7 +1343,7 @@
     };
 
     /**
-     * Tinycolor Modification Functions.
+     * Tinycolor Modification Functions to be used by Tinycolor prototype methods internally.
      * Thanks to less.js for some of the basics here
      * <https://github.com/cloudhead/less.js/blob/master/lib/less/functions.js>
      */
