@@ -53,9 +53,10 @@
     /**
      * Extra variables.
      */
-    var locale,
+    var spectres = [],
+        locale,
         defaultOptions,
-        fnRgbaSupport,
+        isRgbaSupported,
         replaceInput,
         markup;
 
@@ -285,6 +286,18 @@
         },
 
         /**
+         * Create a function bound to an object.
+         */
+        bindFn: function(targetObj, funcToBind) {
+            var arrSlice = Array.prototype.slice,
+                args = slice.call(arguments, 2);
+
+            return function() {
+                return funcToBind.apply(targetObj, args.concat(arrSlice.call(arguments)));
+            };
+        },
+
+        /**
          * Returns a flipped map object, where key becomes value and value becomes key.
          */
         flipMap: function(mapObj) {
@@ -349,6 +362,53 @@
 
             for (i = 0; i < sourceArray.length; i++)
                 fnCallback(i, sourceArray[i], sourceArray);
+        },
+
+        /**
+         * Finds child element within given element `el` that matches `selector`.
+         */
+        find: function(el, selector) {
+            return el.querySelectorAll(selector).item(0);
+        },
+
+        /**
+         * Gets or Sets attribute value of an element.
+         */
+        attr: function(el, attributeName, attributeValue) {
+            if (attributeValue)
+                el.setAttribute(attributeName, attributeValue);
+            else
+                return el.getAttribute(attributeName);
+        },
+
+        /**
+         * Matches an element with a given selector.
+         * It first tries to use Native el.matches (if available), uses Polyfill otherwise.
+         * <https://developer.mozilla.org/en/docs/Web/API/Element/matches>
+         */
+        matches: function(el, selector) {
+            var fnMatches,
+                nativeMatches;
+
+            fnMatches = function() {
+                var matches = (el.document || el.ownerDocument).querySelectorAll(selector),
+                    i = matches.length;
+
+                while (--i >= 0 && matches.item(i) !== el);
+
+                return i > -1;
+            };
+
+            nativeMatches = el.matches ||
+                            el.webkitMatchesSelector ||
+                            el.mozMatchesSelector ||
+                            el.msMatchesSelector ||
+                            el.oMatchesSelector;
+
+            if (nativeMatches)
+                return nativeMatches(selector);
+            else
+                fnMatches(el, selector);
         },
 
         /**
@@ -1547,7 +1607,7 @@
         offset: null
     };
 
-    fnRgbaSupport = function() {
+    isRgbaSupported = function() {
         var el = document.createElement('div'),
             style = el.style,
             fnContains;
